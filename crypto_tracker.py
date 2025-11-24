@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Program for tracking crypto
 
+import sys
 import requests
 import tkinter as tk
 from datetime import datetime
@@ -12,26 +13,31 @@ def get_response(request_params):
     headers = {'x-cg-demo-api-key': request_params['api_key']}
     payload = {'vs_currencies': request_params['currency'], 'symbols': request_params['symbols']}
     path = 'simple/price'
-    return requests.request('GET', base_url+path, headers=headers, params=payload).json()
+    return requests.request('GET', base_url+path, headers=headers, params=payload)
 
-def update_text(label, root, request_params, previous_vals):
+def update_text(label, root, request_params, previous_vals, time_of_day):
     '''Main loop for updating text in window and making API calls'''
     update_time = 300000
     text = ""
     
     # Initialising all zeros for the first time around for the previous vals field.
     if previous_vals == None:
-        response = {}
+        response_json = {}
         for crypto in request_params['symbols'].split(','):
-            response[crypto] = {request_params['currency']: 0}
-            previous_vals = response
+            response_json[crypto] = {request_params['currency']: 0}
+            previous_vals = response_json
     try:
         # Test for HTTP failure, this section maybe done better
         # raise Exception
         response = get_response(request_params)
+        print(time_of_day)
+        print(response.status_code)
+        response_json = response.json()
+        print(response_json)
+        print()
     except:
         text += f"!!!!Missed a http poll!!!\n\n"
-    for coin, value in response.items():
+    for coin, value in response_json.items():
         if (value['aud']) > previous_vals[coin]['aud']:
             indicator = chr(8593)
         elif (value['aud']) < previous_vals[coin]['aud']:
@@ -40,15 +46,15 @@ def update_text(label, root, request_params, previous_vals):
             indicator = '-'
         text += f'{coin.upper()}     $A {value['aud']}  {indicator}\n'
     
-    text += f"\nUpdates every {update_time // 60000} minutes\nLast updated: {datetime.now().strftime('%H:%M:%S')}"
+    text += f"\nUpdates every {update_time // 60000} minutes\nLast updated: {time_of_day}"
     label.config(text=text)
-    root.after(update_time, lambda: update_text(label, root, request_params, response))  # Call again in 1 minute
+    root.after(update_time, lambda: update_text(label, root, request_params, response_json, datetime.now().strftime('%H:%M:%S')))  # Call again in 1 minute
 
 
 
 def main():
     '''Main program'''
-    with open('CONFIG', 'r') as config_file_handle:
+    with open(sys.argv[1], 'r') as config_file_handle:
         config_dict = {}
         for line in config_file_handle:
             split_line = line.rstrip('\n').split('=')
@@ -70,7 +76,7 @@ def main():
     label = tk.Label(root, text="Initial text here", justify="left")
     label.pack(pady=20)
 
-    update_text(label, root, config_dict, None)  # Start the updates
+    update_text(label, root, config_dict, None, datetime.now().strftime('%H:%M:%S'))  # Start the updates
     root.mainloop()
 
 
