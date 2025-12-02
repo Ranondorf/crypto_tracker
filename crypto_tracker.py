@@ -22,21 +22,22 @@ def update_text(label, root, request_params, previous_vals, time_of_day):
     
     # Initialising all zeros for the first time around for the previous vals field.
     if previous_vals == None:
-        response_json = {}
+        previous_vals = {}
         for crypto in request_params['symbols'].split(','):
-            response_json[crypto] = {request_params['currency']: 0}
-            previous_vals = response_json
+            previous_vals[crypto] = {request_params['currency']: 0}
+            # previous_vals = response_json
     try:
         # Test for HTTP failure, this section maybe done better
         # raise Exception
         response = get_response(request_params)
-        print(time_of_day)
-        print(response.status_code)
+        response.raise_for_status()
         response_json = response.json()
-        print(response_json)
-        print()
+        
     except:
+        print(f'Raised for request, code: {response.status_code}')
         text += f"!!!!Missed a http poll!!!\n\n"
+        response_json = previous_vals
+    
     for coin, value in response_json.items():
         if (value['aud']) > previous_vals[coin]['aud']:
             indicator = chr(8593)
@@ -45,7 +46,7 @@ def update_text(label, root, request_params, previous_vals, time_of_day):
         else:
             indicator = '-'
         text += f'{coin.upper()}     $A {value['aud']}  {indicator}\n'
-    
+
     text += f"\nUpdates every {update_time // 60000} minutes\nLast updated: {time_of_day}"
     label.config(text=text)
     root.after(update_time, lambda: update_text(label, root, request_params, response_json, datetime.now().strftime('%H:%M:%S')))  # Call again in 1 minute
